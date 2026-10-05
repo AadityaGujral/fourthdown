@@ -1,0 +1,6 @@
+export const games = [
+{id:"kc-buf-demo",away:"BUF",awayName:"Buffalo Bills",home:"KC",homeName:"Kansas City Chiefs",time:"8:20 PM ET",day:"SUN",network:"PRIME TIME",status:"UPCOMING",awayRecord:"11-2",homeRecord:"12-1",awayScore:null,homeScore:null,venue:"FourthDown Demo Stadium",probAway:46,probHome:54},
+{id:"phi-dal-demo",away:"DAL",awayName:"Dallas Cowboys",home:"PHI",homeName:"Philadelphia Eagles",time:"4:25 PM ET",day:"SUN",network:"NATIONAL",status:"UPCOMING",awayRecord:"8-5",homeRecord:"10-3",awayScore:null,homeScore:null,venue:"FourthDown Demo Stadium",probAway:39,probHome:61},
+{id:"det-gb-demo",away:"GB",awayName:"Green Bay Packers",home:"DET",homeName:"Detroit Lions",time:"1:00 PM ET",day:"SUN",network:"REGIONAL",status:"UPCOMING",awayRecord:"9-4",homeRecord:"11-2",awayScore:null,homeScore:null,venue:"FourthDown Demo Stadium",probAway:42,probHome:58},
+{id:"bal-pit-demo",away:"PIT",awayName:"Pittsburgh Steelers",home:"BAL",homeName:"Baltimore Ravens",time:"1:00 PM ET",day:"SUN",network:"REGIONAL",status:"UPCOMING",awayRecord:"9-4",homeRecord:"9-4",awayScore:null,homeScore:null,venue:"FourthDown Demo Stadium",probAway:44,probHome:56}
+] as const;
