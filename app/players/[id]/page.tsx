@@ -1,0 +1,6 @@
+import {getPlayerProfile} from "@/lib/live-nfl";import {notFound} from "next/navigation";import type {Metadata} from "next";
+export async function generateMetadata({params}:{params:Promise<{id:string}>}):Promise<Metadata>{const {id}=await params;const r=await getPlayerProfile(id);return {title:r.player?.displayName||"Player"}}
+export default async function PlayerPage({params}:{params:Promise<{id:string}>}){const {id}=await params;const r=await getPlayerProfile(id);if(!r.player)notFound();const p=r.player;
+return <section className="page"><div className="pageHead playerHero">{p.headshot?<img src={p.headshot} alt="" className="playerHeadshot"/>:<div className="badge">NFL</div>}<div><span className="kicker">PLAYER PROFILE · V8</span><h1>{p.displayName}</h1><p className="muted">{[p.team,p.position,p.jersey&&"#"+p.jersey].filter(Boolean).join(" · ")}</p></div></div>
+<div className="liveDataFlag">LIVE PROTOTYPE PLAYER PROFILE · Server cached for 1 hour</div>
+<div className="grid"><article className="card"><h3>Bio</h3><p>Height: {p.height||"—"}<br/>Weight: {p.weight||"—"}<br/>Age: {p.age||"—"}</p></article><article className="card"><h3>Experience</h3><p>{p.experience||"—"}<br/>{p.college||"College unavailable"}</p></article><article className="card"><h3>Status</h3><p>{p.status||"Active / unavailable"}</p></article></div></section>}
