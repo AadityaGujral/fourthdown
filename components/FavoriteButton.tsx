@@ -1,17 +1,5 @@
-"use client";
-import {useEffect,useState} from "react";
-
-const KEY="fourthdown:favorites";
-export default function FavoriteButton({slug,name}:{slug:string;name:string}){
-  const [fav,setFav]=useState(false);
-  useEffect(()=>{try{setFav(JSON.parse(localStorage.getItem(KEY)||"[]").includes(slug))}catch{}},[slug]);
-  function toggle(){
-    let list:string[]=[];
-    try{list=JSON.parse(localStorage.getItem(KEY)||"[]")}catch{}
-    list=fav?list.filter(x=>x!==slug):Array.from(new Set([...list,slug]));
-    localStorage.setItem(KEY,JSON.stringify(list));
-    setFav(!fav);
-    window.dispatchEvent(new Event("fourthdown:favorites"));
-  }
-  return <button className={fav?"favBtn active":"favBtn"} onClick={toggle} aria-pressed={fav}>{fav?"★ FAVORITED":"☆ FAVORITE "+name}</button>
-}
+"use client";import {useEffect,useState} from "react";import {getSupabase} from "@/lib/supabase";const KEY="fourthdown:favorites";
+export default function FavoriteButton({slug,name}:{slug:string;name:string}){const [fav,setFav]=useState(false);const supabase=getSupabase();
+ useEffect(()=>{(async()=>{const {data:{session}}=await supabase.auth.getSession();if(session?.user){const {data}=await supabase.from("favorite_teams").select("team_slug").eq("user_id",session.user.id).eq("team_slug",slug).maybeSingle();setFav(Boolean(data))}else{try{setFav(JSON.parse(localStorage.getItem(KEY)||"[]").includes(slug))}catch{}}})()},[slug]);
+ async function toggle(){const {data:{session}}=await supabase.auth.getSession();if(session?.user){if(fav)await supabase.from("favorite_teams").delete().eq("user_id",session.user.id).eq("team_slug",slug);else await supabase.from("favorite_teams").upsert({user_id:session.user.id,team_slug:slug});}else{let list:string[]=[];try{list=JSON.parse(localStorage.getItem(KEY)||"[]")}catch{}list=fav?list.filter(x=>x!==slug):Array.from(new Set([...list,slug]));localStorage.setItem(KEY,JSON.stringify(list));}setFav(!fav);window.dispatchEvent(new Event("fourthdown:favorites"))}
+ return <button className={fav?"favBtn active":"favBtn"} onClick={toggle} aria-pressed={fav}>{fav?"★ FAVORITED":"☆ FAVORITE "+name}</button>}
