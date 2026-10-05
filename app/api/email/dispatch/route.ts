@@ -15,6 +15,7 @@ export async function POST(req:Request){
   const supabase=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:{user},error}=await supabase.auth.getUser(token);
   if(error||!user?.email)return Response.json({ok:false,error:"Invalid session"},{status:401});
+  const recipient=process.env.RESEND_TEST_RECIPIENT||user.email;
   const body=await req.json().catch(()=>({}));const alerts=Array.isArray(body?.alerts)?body.alerts.slice(0,8):[];
   if(!alerts.length)return Response.json({ok:true,sent:0,failed:0,deliveries:[]});
   let sent=0,failed=0;const deliveries:any[]=[];const errors:string[]=[];
@@ -23,11 +24,11 @@ export async function POST(req:Request){
     const accent=a.kind==="injury"?"#ffb612":"#ef3340";
     const html=`<div style="font-family:Arial;background:#0b0e13;color:#fff;padding:28px"><h1 style="margin:0 0 8px">FourthDown</h1><p style="color:${accent};font-weight:700">${esc(String(a.kind).toUpperCase())} ALERT</p><h2>${esc(a.title)}</h2><p>${esc(a.body)}</p><p style="color:#9aa3af">Independent football intelligence. Not affiliated with or endorsed by the NFL.</p></div>`;
     try{
-      const out=await sendEmail(user.email,"FourthDown: "+a.title,html);
+      const out=await sendEmail(recipient,"FourthDown: "+a.title,html);
       deliveries.push({kind:a.kind,dedupe_key:"email:"+a.dedupe_key,provider_id:out?.id||null});
       sent++;
     }catch(e:any){failed++;errors.push(e?.message||"send failed")}
   }
-  return Response.json({ok:true,sent,failed,deliveries,errors,sender:process.env.RESEND_FROM_EMAIL?"verified-domain":"resend-onboarding"});
+  return Response.json({ok:true,sent,failed,deliveries,errors,sender:process.env.RESEND_FROM_EMAIL?"verified-domain":"resend-onboarding",testMode:Boolean(process.env.RESEND_TEST_RECIPIENT)});
  }catch(e:any){return Response.json({ok:false,error:e?.message||"Email dispatch failed"},{status:500})}
 }
