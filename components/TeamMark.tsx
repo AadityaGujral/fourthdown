@@ -1,0 +1,2 @@
+import {brandFor} from "@/lib/team-brand";
+export default function TeamMark({abbr,size="md"}:{abbr:string;size?:"sm"|"md"|"lg"}){const b=brandFor(abbr);return <span className={"teamMark "+size} style={{background:`linear-gradient(135deg,${b.primary},${b.secondary})`}}>{abbr}</span>}
