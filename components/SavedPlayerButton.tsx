@@ -1,9 +1,5 @@
-"use client";
-import {useEffect,useState} from "react";
-const KEY="fourthdown:savedPlayers";
-export default function SavedPlayerButton({id,name,team,position}:{id:string;name:string;team:string;position:string}){
-  const [saved,setSaved]=useState(false);
-  useEffect(()=>{try{const list=JSON.parse(localStorage.getItem(KEY)||"[]");setSaved(list.some((p:any)=>p.id===id))}catch{}},[id]);
-  function toggle(){let list:any[]=[];try{list=JSON.parse(localStorage.getItem(KEY)||"[]")}catch{};list=saved?list.filter(p=>p.id!==id):[...list.filter(p=>p.id!==id),{id,name,team,position}];localStorage.setItem(KEY,JSON.stringify(list));setSaved(!saved);window.dispatchEvent(new Event("fourthdown:savedPlayers"));}
-  return <button className={saved?"savePlayerBtn active":"savePlayerBtn"} onClick={toggle}>{saved?"★ SAVED PLAYER":"☆ SAVE PLAYER"}</button>
-}
+"use client";import {useEffect,useState} from "react";import {getSupabase} from "@/lib/supabase";const KEY="fourthdown:savedPlayers";
+export default function SavedPlayerButton({id,name,team,position}:{id:string;name:string;team:string;position:string}){const [saved,setSaved]=useState(false);const supabase=getSupabase();
+ useEffect(()=>{(async()=>{const {data:{session}}=await supabase.auth.getSession();if(session?.user){const {data}=await supabase.from("saved_players").select("player_id").eq("user_id",session.user.id).eq("player_id",id).maybeSingle();setSaved(Boolean(data))}else{try{setSaved(JSON.parse(localStorage.getItem(KEY)||"[]").some((p:any)=>p.id===id))}catch{}}})()},[id]);
+ async function toggle(){const {data:{session}}=await supabase.auth.getSession();if(session?.user){if(saved)await supabase.from("saved_players").delete().eq("user_id",session.user.id).eq("player_id",id);else await supabase.from("saved_players").upsert({user_id:session.user.id,player_id:id,player_name:name,team,position});}else{let list:any[]=[];try{list=JSON.parse(localStorage.getItem(KEY)||"[]")}catch{}list=saved?list.filter(p=>p.id!==id):[...list.filter(p=>p.id!==id),{id,name,team,position}];localStorage.setItem(KEY,JSON.stringify(list));}setSaved(!saved);window.dispatchEvent(new Event("fourthdown:savedPlayers"))}
+ return <button className={saved?"savePlayerBtn active":"savePlayerBtn"} onClick={toggle}>{saved?"★ SAVED PLAYER":"☆ SAVE PLAYER"}</button>}
