@@ -1,0 +1,3 @@
+import type {Metadata} from "next";import "./globals.css";import {Header,Footer} from "@/components/Shell";
+export const metadata:Metadata={title:{default:"FourthDown | NFL Intelligence",template:"%s | FourthDown"},description:"Independent NFL scores, teams, stats, standings, analytics and fantasy intelligence."};
+export default function Layout({children}:{children:React.ReactNode}){return <html lang="en"><body><Header/>{children}<Footer/></body></html>}
