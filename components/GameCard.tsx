@@ -1,3 +1,10 @@
 import Link from "next/link";
-type G={id:string;away:string;awayName:string;home:string;homeName:string;time:string;day:string;network:string;status:string;awayRecord:string;homeRecord:string;probAway:number;probHome:number};
-export function GameCard({g}:{g:G}){return <Link href={`/games/${g.id}`} className="gameCard"><div className="gameTop"><span>{g.day} · {g.time}</span><b>{g.network}</b></div><div className="matchTeam"><div className="miniBadge">{g.away}</div><strong>{g.awayName}</strong><small>{g.awayRecord}</small></div><div className="matchTeam"><div className="miniBadge">{g.home}</div><strong>{g.homeName}</strong><small>{g.homeRecord}</small></div><div className="modelBar"><span style={{width:`${g.probAway}%`}}></span></div><div className="gameFoot"><small>FOURTHDOWN DEMO MODEL</small><b>{g.away} {g.probAway}% · {g.home} {g.probHome}%</b></div></Link>}
+type G={id:string;away:string;awayName:string;home:string;homeName:string;time:string;day:string;network:string;status:string;awayRecord:string;homeRecord:string;awayScore?:number|null;homeScore?:number|null;probAway?:number;probHome?:number;source?:string};
+export function GameCard({g}:{g:G}){
+  const live=g.source==="espn-public";
+  return <Link href={`/games/${g.id}`} className="gameCard"><div className="gameTop"><span>{g.day} · {g.time}</span><b>{g.network}</b></div>
+  <div className="matchTeam"><div className="miniBadge">{g.away}</div><strong>{g.awayName}</strong><small>{g.awayRecord}</small>{g.awayScore!=null&&<em className="scoreNum">{g.awayScore}</em>}</div>
+  <div className="matchTeam"><div className="miniBadge">{g.home}</div><strong>{g.homeName}</strong><small>{g.homeRecord}</small>{g.homeScore!=null&&<em className="scoreNum">{g.homeScore}</em>}</div>
+  {live?<div className="gameFoot"><small>LIVE DATA FEED</small><b>{g.status}</b></div>:<><div className="modelBar"><span style={{width:`${g.probAway||50}%`}}></span></div><div className="gameFoot"><small>FOURTHDOWN DEMO MODEL</small><b>{g.away} {g.probAway}% · {g.home} {g.probHome}%</b></div></>}
+  </Link>
+}
