@@ -1,0 +1,4 @@
+import Link from "next/link";
+const items=[["Home","/"],["Scores","/scores"],["News","/news"],["Teams","/teams"],["Stats","/stats"],["Standings","/standings"],["Analytics","/analytics"],["Fantasy","/fantasy"]];
+export function Header(){return <><header className="header"><Link className="logo" href="/"><b>4</b>FOURTHDOWN</Link><nav>{items.map(([n,h])=><Link key={h} href={h}>{n}</Link>)}</nav><span className="live">● LIVE</span></header><div className="ticker"><strong>NFL INTELLIGENCE</strong> Scores • teams • analytics • fantasy • playoff race</div></>}
+export function Footer(){return <footer><div className="logo"><b>4</b>FOURTHDOWN</div><p>Independent football intelligence. Not affiliated with or endorsed by the NFL.</p><small>V5 · Game Center foundation</small></footer>}
