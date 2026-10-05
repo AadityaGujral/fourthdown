@@ -1,0 +1,4 @@
+"use client";
+import Link from "next/link";import {useEffect,useState} from "react";
+export default function SavedPlayersPanel(){const [players,setPlayers]=useState<any[]>([]);useEffect(()=>{const load=()=>{try{setPlayers(JSON.parse(localStorage.getItem("fourthdown:savedPlayers")||"[]"))}catch{setPlayers([])}};load();window.addEventListener("fourthdown:savedPlayers",load);return()=>window.removeEventListener("fourthdown:savedPlayers",load)},[]);
+if(!players.length)return null;return <section className="page personalize"><div className="sectionTitle"><div><span className="kicker">PERSONALIZED</span><h2>Saved Players</h2></div><Link href="/account">MANAGE →</Link></div><div className="savedPlayerGrid">{players.slice(0,6).map(p=><Link className="savedPlayerCard" href={"/players/"+p.id} key={p.id}><b>{p.position||"NFL"}</b><strong>{p.name}</strong><small>{p.team}</small></Link>)}</div></section>}
