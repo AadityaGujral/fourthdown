@@ -1,3 +1,1 @@
-import HeaderClient from "@/components/HeaderClient";
-export function Header(){return <><HeaderClient/><div className="ticker"><strong>NFL INTELLIGENCE</strong> Scores • teams • analytics • fantasy • playoff race</div></>}
-export function Footer(){return <footer><div className="logo"><b>4</b>FOURTHDOWN</div><p>Independent football intelligence. Not affiliated with or endorsed by the NFL.</p><small>V6 · Search + favorites + mobile navigation</small></footer>}
+import HeaderClient from "@/components/HeaderClient";export function Header(){return <><HeaderClient/><div className="ticker"><strong>NFL INTELLIGENCE</strong> Live scores • playoff race • injuries • analytics • fantasy</div></>}export function Footer(){return <footer><div className="logo"><b>4</b>FOURTHDOWN</div><p>Independent football intelligence. Not affiliated with or endorsed by the NFL.</p><small>V9 · Live dashboard + playoff picture + injury/fantasy intelligence</small></footer>}
