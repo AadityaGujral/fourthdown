@@ -23,7 +23,7 @@ export default function EmailAlertsButton(){
     const rows=d.deliveries.map((x:any)=>({user_id:uid,kind:x.kind,dedupe_key:x.dedupe_key,recipient:session.user.email||"",provider_id:x.provider_id||null,status:"sent"}));
     await supabase.from("email_deliveries").upsert(rows,{onConflict:"user_id,dedupe_key",ignoreDuplicates:true});
    }
-   setStatus(d.sent+" email alert(s) sent · "+d.failed+" failed");
+   setStatus(d.sent+" email alert(s) sent · "+d.failed+" failed"+(d.errors?.[0]?" · "+d.errors[0]:""));
   }catch(e:any){setStatus(e?.message||"Email delivery unavailable")}
  }
  return <div className="emailAlertControl"><button className="btn" onClick={send}>EMAIL MY ALERTS</button>{status&&<span>{status}</span>}</div>
