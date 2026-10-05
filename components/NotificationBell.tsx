@@ -1,0 +1,5 @@
+"use client";import Link from "next/link";import {useEffect,useState} from "react";import {getSupabase} from "@/lib/supabase";
+export default function NotificationBell(){const supabase=getSupabase();const [count,setCount]=useState(0);
+async function load(){const {data:{session}}=await supabase.auth.getSession();if(!session?.user){setCount(0);return}const {count}=await supabase.from("notifications").select("*",{count:"exact",head:true}).eq("user_id",session.user.id).is("read_at",null);setCount(count||0)}
+useEffect(()=>{load();const t=setInterval(load,60000);const {data:{subscription}}=supabase.auth.onAuthStateChange(()=>load());return()=>{clearInterval(t);subscription.unsubscribe()}},[]);
+return <Link className="notifBell" href="/notifications" aria-label="Notifications">🔔{count>0&&<b>{count>99?"99+":count}</b>}</Link>}
