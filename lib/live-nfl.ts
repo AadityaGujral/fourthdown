@@ -63,7 +63,7 @@ export async function getLiveStandings():Promise<{rows:StandingRow[];updatedAt:s
 
 export type LivePlay={id:string;clock:string;period:number;text:string;team:string;scoring:boolean;scoreValue:number};
 export type RosterPlayer={id:string;name:string;shortName:string;position:string;jersey:string;experience:string;status:string;headshot:string};
-export type InjuryRow={playerId:string;name:string;position:string;status:string;detail:string};
+export type InjuryRow={playerId:string;name:string;position:string;status:string;detail:string;team?:string};
 export type PlayerProfile={id:string;name:string;displayName:string;position:string;team:string;jersey:string;height:string;weight:string;age:string;experience:string;college:string;headshot:string;status:string};
 
 export async function getGameSummary(eventId:string):Promise<{plays:LivePlay[];leaders:any[];injuries:InjuryRow[];ok:boolean}>{
@@ -81,7 +81,7 @@ export async function getGameSummary(eventId:string):Promise<{plays:LivePlay[];l
     })));
     const injuries:InjuryRow[]=(data.injuries||[]).flatMap((team:any)=>(team.injuries||[]).map((i:any)=>({
       playerId:String(i.athlete?.id||""),name:i.athlete?.displayName||"",position:i.athlete?.position?.abbreviation||"",
-      status:i.status||i.type?.description||"",detail:i.details?.detail||i.details?.type||""
+      status:i.status||i.type?.description||"",detail:i.details?.detail||i.details?.type||"",team:team.team?.abbreviation||team.displayName||""
     })));
     return {plays,leaders,injuries,ok:true};
   }catch{return {plays:[],leaders:[],injuries:[],ok:false}}
@@ -126,4 +126,18 @@ export async function getLeagueLeaders():Promise<{groups:{name:string;leaders:{i
     })).filter((g:any)=>g.leaders.length);
     return {groups,ok:groups.length>0};
   }catch{return {groups:[],ok:false}}
+}
+
+export async function getLeagueInjuryWatch():Promise<{rows:InjuryRow[];ok:boolean}>{
+  try{
+    const board=await getLiveScoreboard();
+    if(!board.ok||!board.games.length) return {rows:[],ok:false};
+    const results=await Promise.all(board.games.slice(0,16).map(g=>getGameSummary(g.id)));
+    const map=new Map<string,InjuryRow>();
+    for(const r of results) for(const i of r.injuries){
+      const key=i.playerId||[i.name,i.team,i.status].join("|");
+      if(key&&!map.has(key)) map.set(key,i);
+    }
+    return {rows:Array.from(map.values()).slice(0,60),ok:map.size>0};
+  }catch{return {rows:[],ok:false}}
 }
