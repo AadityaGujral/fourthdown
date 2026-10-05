@@ -1,0 +1,1 @@
+export async function GET(){return Response.json({service:"FourthDown API",version:"v5",status:"ok",providerConfigured:Boolean(process.env.SPORTSRADAR_API_KEY),timestamp:new Date().toISOString()})}
