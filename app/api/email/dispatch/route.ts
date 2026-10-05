@@ -25,7 +25,7 @@ export async function POST(req:Request){
     supabase.from("notification_preferences").select("*").eq("user_id",uid).maybeSingle(),
     getLiveScoreboard(),getLeagueInjuryWatch()
   ]);
-  const favAbbr=new Set(teams.filter(t=>(favs||[]).some((f:any)=>f.team_slug===t.slug)).map(t=>t.abbr));
+  const favAbbr=new Set<string>(teams.filter(t=>(favs||[]).some((f:any)=>f.team_slug===t.slug)).map(t=>t.abbr));
   const savedIds=new Set((players||[]).map((p:any)=>p.player_id));
   const candidates:any[]=[];
   if(prefs?.game_alerts!==false)for(const g of board.games||[]){if(favAbbr.has(g.away)||favAbbr.has(g.home))candidates.push({kind:"game",dedupe_key:"email:game:"+g.id+":"+g.status,subject:"FourthDown: "+g.away+" vs "+g.home,html:`<div style="font-family:Arial;background:#0b0e13;color:#fff;padding:28px"><h1 style="margin:0 0 8px">FourthDown</h1><p style="color:#ef3340;font-weight:700">GAME ALERT</p><h2>${esc(g.away)} vs ${esc(g.home)}</h2><p>${esc(g.status)} · ${esc(g.day)} ${esc(g.time)} · ${esc(g.network)}</p><p style="color:#9aa3af">Independent football intelligence. Not affiliated with or endorsed by the NFL.</p></div>`})}
