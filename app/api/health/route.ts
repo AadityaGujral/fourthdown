@@ -1,1 +1,1 @@
-export async function GET(){return Response.json({service:"FourthDown API",version:"v5",status:"ok",providerConfigured:Boolean(process.env.SPORTSRADAR_API_KEY),timestamp:new Date().toISOString()})}
+export async function GET(){return Response.json({service:"FourthDown API",version:"v7",status:"ok",livePrototypeFeed:true,licensedProviderConfigured:Boolean(process.env.SPORTSRADAR_API_KEY),provider:process.env.SPORTSRADAR_API_KEY?"sportradar":"prototype-web-feed",timestamp:new Date().toISOString()})}
