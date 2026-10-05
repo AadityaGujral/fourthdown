@@ -1,14 +1,44 @@
 "use client";
-import Link from "next/link";import {useEffect,useState} from "react";import {teams} from "@/lib/teams";
+import Link from "next/link";import {useEffect,useState} from "react";import {teams} from "@/lib/teams";import {getSupabase} from "@/lib/supabase";
 type Prefs={name:string;email:string;gameAlerts:boolean;injuryAlerts:boolean;fantasyAlerts:boolean;weeklyDigest:boolean};
 const DEFAULT:Prefs={name:"",email:"",gameAlerts:true,injuryAlerts:true,fantasyAlerts:false,weeklyDigest:true};
 export default function AccountCenter(){
- const [prefs,setPrefs]=useState<Prefs>(DEFAULT);const [teamSlugs,setTeamSlugs]=useState<string[]>([]);const [players,setPlayers]=useState<any[]>([]);const [saved,setSaved]=useState(false);
- useEffect(()=>{try{setPrefs({...DEFAULT,...JSON.parse(localStorage.getItem("fourthdown:profile")||"{}")});setTeamSlugs(JSON.parse(localStorage.getItem("fourthdown:favorites")||"[]"));setPlayers(JSON.parse(localStorage.getItem("fourthdown:savedPlayers")||"[]"))}catch{}},[]);
- function save(){localStorage.setItem("fourthdown:profile",JSON.stringify(prefs));setSaved(true);setTimeout(()=>setSaved(false),1600)}
+ const [prefs,setPrefs]=useState<Prefs>(DEFAULT);const [teamSlugs,setTeamSlugs]=useState<string[]>([]);const [players,setPlayers]=useState<any[]>([]);
+ const [user,setUser]=useState<any>(null);const [password,setPassword]=useState("");const [status,setStatus]=useState("");const [loading,setLoading]=useState(true);
+ const supabase=getSupabase();
+
+ async function hydrateCloud(uid:string,email:string){
+   const [{data:profile},{data:favs},{data:saved},{data:notifs}]=await Promise.all([
+     supabase.from("profiles").select("full_name,email").eq("id",uid).maybeSingle(),
+     supabase.from("favorite_teams").select("team_slug").eq("user_id",uid),
+     supabase.from("saved_players").select("player_id,player_name,team,position").eq("user_id",uid),
+     supabase.from("notification_preferences").select("*").eq("user_id",uid).maybeSingle()
+   ]);
+   const localFavs=JSON.parse(localStorage.getItem("fourthdown:favorites")||"[]");
+   const localPlayers=JSON.parse(localStorage.getItem("fourthdown:savedPlayers")||"[]");
+   if((favs||[]).length===0&&localFavs.length){await supabase.from("favorite_teams").upsert(localFavs.map((s:string)=>({user_id:uid,team_slug:s}))); }
+   if((saved||[]).length===0&&localPlayers.length){await supabase.from("saved_players").upsert(localPlayers.map((p:any)=>({user_id:uid,player_id:p.id,player_name:p.name,team:p.team,position:p.position}))); }
+   const freshFavs=(await supabase.from("favorite_teams").select("team_slug").eq("user_id",uid)).data||[];
+   const freshPlayers=(await supabase.from("saved_players").select("player_id,player_name,team,position").eq("user_id",uid)).data||[];
+   setTeamSlugs(freshFavs.map((x:any)=>x.team_slug));
+   setPlayers(freshPlayers.map((x:any)=>({id:x.player_id,name:x.player_name,team:x.team,position:x.position})));
+   setPrefs({name:profile?.full_name||"",email:profile?.email||email||"",gameAlerts:notifs?.game_alerts??true,injuryAlerts:notifs?.injury_alerts??true,fantasyAlerts:notifs?.fantasy_alerts??false,weeklyDigest:notifs?.weekly_digest??true});
+ }
+ useEffect(()=>{(async()=>{const {data:{session}}=await supabase.auth.getSession();if(session?.user){setUser(session.user);await hydrateCloud(session.user.id,session.user.email||"")}else{try{setPrefs({...DEFAULT,...JSON.parse(localStorage.getItem("fourthdown:profile")||"{}")});setTeamSlugs(JSON.parse(localStorage.getItem("fourthdown:favorites")||"[]"));setPlayers(JSON.parse(localStorage.getItem("fourthdown:savedPlayers")||"[]"))}catch{}}setLoading(false)})();const {data:{subscription}}=supabase.auth.onAuthStateChange(async(_e,s)=>{setUser(s?.user||null);if(s?.user)await hydrateCloud(s.user.id,s.user.email||"")});return()=>subscription.unsubscribe()},[]);
+ async function signIn(){setStatus("Signing in…");const {error}=await supabase.auth.signInWithPassword({email:prefs.email,password});setStatus(error?error.message:"Signed in ✓")}
+ async function signUp(){setStatus("Creating account…");const {error}=await supabase.auth.signUp({email:prefs.email,password,options:{data:{full_name:prefs.name}}});setStatus(error?error.message:"Account created. Check your email if confirmation is required.")}
+ async function signOut(){await supabase.auth.signOut();setUser(null);setStatus("Signed out")}
+ async function save(){
+   if(user){await Promise.all([
+     supabase.from("profiles").upsert({id:user.id,full_name:prefs.name,email:prefs.email,updated_at:new Date().toISOString()}),
+     supabase.from("notification_preferences").upsert({user_id:user.id,game_alerts:prefs.gameAlerts,injury_alerts:prefs.injuryAlerts,fantasy_alerts:prefs.fantasyAlerts,weekly_digest:prefs.weeklyDigest,updated_at:new Date().toISOString()})
+   ]);setStatus("Saved to cloud ✓");
+   }else{localStorage.setItem("fourthdown:profile",JSON.stringify(prefs));setStatus("Saved on this device ✓")}
+ }
  const favs=teams.filter(t=>teamSlugs.includes(t.slug));
+ if(loading)return <div className="panel"><p className="muted">Loading account…</p></div>;
  return <div className="accountGrid">
-  <section className="panel accountProfile"><span className="kicker">LOCAL PROFILE</span><h2>Your FourthDown</h2><label>Name<input value={prefs.name} onChange={e=>setPrefs({...prefs,name:e.target.value})} placeholder="Your name"/></label><label>Email<input type="email" value={prefs.email} onChange={e=>setPrefs({...prefs,email:e.target.value})} placeholder="you@example.com"/></label><button className="btn" onClick={save}>{saved?"SAVED ✓":"SAVE PROFILE"}</button><p className="accountNote">Stored only in this browser in V10. Cloud sign-in comes after an auth/database provider is connected.</p></section>
+  <section className="panel accountProfile"><span className="kicker">{user?"CLOUD ACCOUNT":"SIGN IN · V11"}</span><h2>{user?"Your FourthDown":"Create or sign in"}</h2><label>Name<input value={prefs.name} onChange={e=>setPrefs({...prefs,name:e.target.value})} placeholder="Your name"/></label><label>Email<input type="email" value={prefs.email} onChange={e=>setPrefs({...prefs,email:e.target.value})} placeholder="you@example.com"/></label>{!user&&<label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="8+ characters"/></label>}<div className="actions">{user?<button className="btn secondary" onClick={signOut}>SIGN OUT</button>:<><button className="btn" onClick={signIn}>SIGN IN</button><button className="btn secondary" onClick={signUp}>CREATE ACCOUNT</button></>}</div><p className="accountNote">{user?"Cloud sync is active across signed-in devices.":"You can keep using local mode, or sign in to enable cloud sync."}</p>{status&&<p className="cloudStatus">{status}</p>}</section>
   <section className="panel"><span className="kicker">ALERT PREFERENCES</span><h2>Notifications</h2>{[["gameAlerts","Game alerts"],["injuryAlerts","Injury alerts"],["fantasyAlerts","Fantasy alerts"],["weeklyDigest","Weekly digest"]].map(([k,l])=><label className="toggleRow" key={k}><span>{l}</span><input type="checkbox" checked={(prefs as any)[k]} onChange={e=>setPrefs({...prefs,[k]:e.target.checked})}/></label>)}<button className="btn secondary" onClick={save}>SAVE PREFERENCES</button></section>
   <section className="panel"><span className="kicker">MY TEAMS</span><h2>{favs.length} Favorites</h2>{favs.length?favs.map(t=><Link className="accountItem" href={"/teams/"+t.slug} key={t.slug}><b>{t.abbr}</b><span>{t.name}</span></Link>):<p className="muted">No favorite teams yet.</p>}<Link className="textLink" href="/teams">Manage teams →</Link></section>
   <section className="panel"><span className="kicker">SAVED PLAYERS</span><h2>{players.length} Players</h2>{players.length?players.map(p=><Link className="accountItem" href={"/players/"+p.id} key={p.id}><b>{p.position||"NFL"}</b><span>{p.name}<small>{p.team}</small></span></Link>):<p className="muted">Save players from any player profile.</p>}<Link className="textLink" href="/stats">Browse leaders →</Link></section>
