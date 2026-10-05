@@ -1,18 +1,5 @@
-"use client";
-import Link from "next/link";
-import {useEffect,useState} from "react";
-import {teams} from "@/lib/teams";
-
+"use client";import Link from "next/link";import {useEffect,useState} from "react";import {teams} from "@/lib/teams";import {getSupabase} from "@/lib/supabase";
 const KEY="fourthdown:favorites";
-export default function FavoritesPanel(){
-  const [slugs,setSlugs]=useState<string[]>([]);
-  useEffect(()=>{
-    const load=()=>{try{setSlugs(JSON.parse(localStorage.getItem(KEY)||"[]"))}catch{setSlugs([])}};
-    load();window.addEventListener("fourthdown:favorites",load);return()=>window.removeEventListener("fourthdown:favorites",load);
-  },[]);
-  const favs=teams.filter(t=>slugs.includes(t.slug));
-  return <section className="page personalize">
-    <div className="sectionTitle"><div><span className="kicker">PERSONALIZED</span><h2>My Teams</h2></div><Link href="/teams">EDIT FAVORITES →</Link></div>
-    {favs.length?<div className="favoriteGrid">{favs.map(t=><Link className="favoriteCard" href={"/teams/"+t.slug} key={t.slug}><b>{t.abbr}</b><span>{t.name}</span><small>{t.division}</small></Link>)}</div>:<div className="emptyState"><strong>Your FourthDown feed starts here.</strong><p>Open any team page and tap Favorite. Your teams stay saved on this device.</p><Link className="btn" href="/teams">CHOOSE A TEAM →</Link></div>}
-  </section>
-}
+export default function FavoritesPanel(){const [slugs,setSlugs]=useState<string[]>([]);const supabase=getSupabase();
+useEffect(()=>{const load=async()=>{const {data:{session}}=await supabase.auth.getSession();if(session?.user){const {data}=await supabase.from("favorite_teams").select("team_slug").eq("user_id",session.user.id);setSlugs((data||[]).map((x:any)=>x.team_slug))}else{try{setSlugs(JSON.parse(localStorage.getItem(KEY)||"[]"))}catch{setSlugs([])}}};load();window.addEventListener("fourthdown:favorites",load);const {data:{subscription}}=supabase.auth.onAuthStateChange(()=>load());return()=>{window.removeEventListener("fourthdown:favorites",load);subscription.unsubscribe()}},[]);
+const favs=teams.filter(t=>slugs.includes(t.slug));return <section className="page personalize"><div className="sectionTitle"><div><span className="kicker">PERSONALIZED</span><h2>My Teams</h2></div><Link href="/teams">EDIT FAVORITES →</Link></div>{favs.length?<div className="favoriteGrid">{favs.map(t=><Link className="favoriteCard" href={"/teams/"+t.slug} key={t.slug}><b>{t.abbr}</b><span>{t.name}</span><small>{t.division}</small></Link>)}</div>:<div className="emptyState"><strong>Your FourthDown feed starts here.</strong><p>Open any team page and tap Favorite. Signed-in favorites sync through your V12 cloud account.</p><Link className="btn" href="/teams">CHOOSE A TEAM →</Link></div>}</section>}
