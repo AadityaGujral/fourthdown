@@ -1,7 +1,7 @@
 import {unstable_cache} from "next/cache";
 
 export type LiveGame={
-  id:string;away:string;awayName:string;home:string;homeName:string;time:string;day:string;network:string;status:string;
+  id:string;startAt?:string;phase?:string;away:string;awayName:string;home:string;homeName:string;time:string;day:string;network:string;status:string;
   awayRecord:string;homeRecord:string;awayScore:number|null;homeScore:number|null;venue:string;detail:string;source:"espn-public"
 };
 export type StandingRow={conference:string;division:string;team:string;abbr:string;wins:string;losses:string;ties:string;pct:string;streak:string};
@@ -33,7 +33,7 @@ export async function getLiveScoreboard():Promise<{games:LiveGame[];updatedAt:st
       if(Number.isNaN(date.getTime())) throw new Error("Invalid game date");
       const status=e.status?.type?.shortDetail||e.status?.type?.detail||"Scheduled";
       return {
-        id:String(e.id),away:teamAbbr(away),awayName:away.team?.displayName||"Away",home:teamAbbr(home),homeName:home.team?.displayName||"Home",
+        id:String(e.id),startAt:date.toISOString(),phase:e.status?.type?.state||"",away:teamAbbr(away),awayName:away.team?.displayName||"Away",home:teamAbbr(home),homeName:home.team?.displayName||"Home",
         time:date.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/New_York"})+" ET",
         day:date.toLocaleDateString("en-US",{weekday:"short",timeZone:"America/New_York"}).toUpperCase(),
         network:(comp.broadcasts?.[0]?.names||[]).join(" / ")||"NFL",
