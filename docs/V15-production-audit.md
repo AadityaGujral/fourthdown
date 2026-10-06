@@ -35,7 +35,9 @@ Story: NFL feeds render scores and player leaders; signed-in users save favorite
 - 18 automated regression tests passed: nested/array leaders, oversized normalization, empty schedules, six provider failure paths, push authentication, missing subscriptions, expired subscriptions, accepted delivery, query failures, and safe notification navigation.
 - TypeScript and production Next build passed. Feed fallback warnings are now visible rather than swallowed.
 - Application production deployment is pending explicit approval: automatic approval review rejected the direct push to main. The production app still uses the original V15 deployment. The database guard patch was applied separately and is already live.
-- A review branch/PR contains the validated application fixes; preview verification is recorded separately when available.
+- Draft PR #1: https://github.com/AadityaGujral/fourthdown/pull/1.
+- Vercel preview `dpl_CvkLfxo9URVYa8K2h8fgKQA5mFLD` reached READY from application commit `7a9851c5016ef12beda7c5c500b30d0270844fff`. Its build completed in 17 seconds with no leaders-cache or roster failure warnings.
+- Authenticated Vercel fetch checks of that preview returned HTTP 200: Stats contains Passing Yards leader data; Arizona and Washington contain LIVE PROTOTYPE ROSTER; Account loads; manifest declares standalone display with 192/512 icons. These are rendered HTTP response checks, not an authenticated user or physical-device push test.
 
 ## Remaining V16 work, in priority order
 
