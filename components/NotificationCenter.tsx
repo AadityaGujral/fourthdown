@@ -17,7 +17,7 @@ export default function NotificationCenter(){
   if(inserts.length)await supabase.from("notifications").upsert(inserts,{onConflict:"user_id,dedupe_key",ignoreDuplicates:true});
   const {data}=await supabase.from("notifications").select("*").eq("user_id",uid).order("created_at",{ascending:false}).limit(50);setItems(data||[]);setLoading(false)
  }
- useEffect(()=>{load();const {data:{subscription}}=supabase.auth.onAuthStateChange(()=>load());return()=>subscription.unsubscribe()},[]);
+ useEffect(()=>{load();const {data:{subscription}}=supabase.auth.onAuthStateChange(()=>{setTimeout(()=>{void load()},0)});return()=>subscription.unsubscribe()},[]);
  async function markRead(id:number){await supabase.from("notifications").update({read_at:new Date().toISOString()}).eq("id",id);setItems(v=>v.map(x=>x.id===id?{...x,read_at:new Date().toISOString()}:x))}
  async function markAll(){const {data:{session}}=await supabase.auth.getSession();if(!session?.user)return;const now=new Date().toISOString();await supabase.from("notifications").update({read_at:now}).eq("user_id",session.user.id).is("read_at",null);setItems(v=>v.map(x=>({...x,read_at:x.read_at||now})))}
  if(loading)return <p className="muted">Loading notifications…</p>;

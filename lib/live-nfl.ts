@@ -1,3 +1,5 @@
+import {unstable_cache} from "next/cache";
+
 export type LiveGame={
   id:string;away:string;awayName:string;home:string;homeName:string;time:string;day:string;network:string;status:string;
   awayRecord:string;homeRecord:string;awayScore:number|null;homeScore:number|null;venue:string;detail:string;source:"espn-public"
@@ -7,12 +9,19 @@ export type StandingRow={conference:string;division:string;team:string;abbr:stri
 const SCOREBOARD="https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
 const STANDINGS="https://site.api.espn.com/apis/v2/sports/football/nfl/standings";
 
+const FEED_TIMEOUT_MS=8000;
+function feedFailure(feed:string,error:unknown){
+  // Only record a feed label and error class: never payloads or user data.
+  console.warn(JSON.stringify({event:"sports_feed_failure",feed,error:error instanceof Error?error.name:"UnknownError"}));
+}
 function record(c:any){return c?.records?.find((r:any)=>r.type==="total")?.summary||c?.records?.[0]?.summary||""}
-function teamAbbr(c:any){return c?.team?.abbreviation||c?.team?.shortDisplayName||"NFL"}
+function appAbbr(abbr:string){return ({ARI:"ARZ",WSH:"WAS"} as Record<string,string>)[abbr]||abbr}
+function providerAbbr(abbr:string){return ({ARZ:"ARI",WAS:"WSH"} as Record<string,string>)[abbr.toUpperCase()]||abbr}
+function teamAbbr(c:any){return appAbbr(c?.team?.abbreviation||c?.team?.shortDisplayName||"NFL")}
 
 export async function getLiveScoreboard():Promise<{games:LiveGame[];updatedAt:string;ok:boolean}>{
   try{
-    const res=await fetch(SCOREBOARD,{next:{revalidate:60}});
+    const res=await fetch(SCOREBOARD,{signal:AbortSignal.timeout(FEED_TIMEOUT_MS),next:{revalidate:60}});
     if(!res.ok) throw new Error("scoreboard "+res.status);
     const data:any=await res.json();
     const games:LiveGame[]=(data.events||[]).map((e:any)=>{
@@ -21,6 +30,7 @@ export async function getLiveScoreboard():Promise<{games:LiveGame[];updatedAt:st
       const home=cs.find((c:any)=>c.homeAway==="home")||cs[0]||{};
       const away=cs.find((c:any)=>c.homeAway==="away")||cs[1]||{};
       const date=new Date(e.date);
+      if(Number.isNaN(date.getTime())) throw new Error("Invalid game date");
       const status=e.status?.type?.shortDetail||e.status?.type?.detail||"Scheduled";
       return {
         id:String(e.id),away:teamAbbr(away),awayName:away.team?.displayName||"Away",home:teamAbbr(home),homeName:home.team?.displayName||"Home",
@@ -32,13 +42,13 @@ export async function getLiveScoreboard():Promise<{games:LiveGame[];updatedAt:st
         venue:comp.venue?.fullName||"Venue TBA",detail:status,source:"espn-public" as const
       }
     });
-    return {games,updatedAt:new Date().toISOString(),ok:true};
-  }catch{return {games:[],updatedAt:new Date().toISOString(),ok:false}}
+    return {games,updatedAt:new Date().toISOString(),ok:Array.isArray(data.events)};
+  }catch(error){feedFailure("scoreboard",error);return {games:[],updatedAt:new Date().toISOString(),ok:false}}
 }
 
 export async function getLiveStandings():Promise<{rows:StandingRow[];updatedAt:string;ok:boolean}>{
   try{
-    const res=await fetch(STANDINGS,{next:{revalidate:300}});
+    const res=await fetch(STANDINGS,{signal:AbortSignal.timeout(FEED_TIMEOUT_MS),next:{revalidate:300}});
     if(!res.ok) throw new Error("standings "+res.status);
     const data:any=await res.json();
     const rows:StandingRow[]=[];
@@ -50,7 +60,7 @@ export async function getLiveStandings():Promise<{rows:StandingRow[];updatedAt:s
       const entries=node?.standings?.entries||[];
       for(const entry of entries){
         const stats:any={}; for(const s of entry.stats||[]) stats[s.name]=s.displayValue??s.value;
-        rows.push({conference:conf,division:div,team:entry.team?.displayName||"",abbr:entry.team?.abbreviation||"",
+        rows.push({conference:conf,division:div,team:entry.team?.displayName||"",abbr:appAbbr(entry.team?.abbreviation||""),
           wins:String(stats.wins??""),losses:String(stats.losses??""),ties:String(stats.ties??"0"),
           pct:String(stats.winPercent??stats.winpercent??""),streak:String(stats.streak??"")});
       }
@@ -58,7 +68,7 @@ export async function getLiveStandings():Promise<{rows:StandingRow[];updatedAt:s
     };
     for(const child of data.children||[]) walk(child);
     return {rows,updatedAt:new Date().toISOString(),ok:rows.length>0};
-  }catch{return {rows:[],updatedAt:new Date().toISOString(),ok:false}}
+  }catch(error){feedFailure("standings",error);return {rows:[],updatedAt:new Date().toISOString(),ok:false}}
 }
 
 export type LivePlay={id:string;clock:string;period:number;text:string;team:string;scoring:boolean;scoreValue:number};
@@ -68,7 +78,7 @@ export type PlayerProfile={id:string;name:string;displayName:string;position:str
 
 export async function getGameSummary(eventId:string):Promise<{plays:LivePlay[];leaders:any[];injuries:InjuryRow[];ok:boolean}>{
   try{
-    const res=await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${encodeURIComponent(eventId)}`,{next:{revalidate:30}});
+    const res=await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${encodeURIComponent(eventId)}`,{signal:AbortSignal.timeout(FEED_TIMEOUT_MS),next:{revalidate:30}});
     if(!res.ok) throw new Error("summary "+res.status);
     const data:any=await res.json();
     const plays:LivePlay[]=(data.plays||[]).slice(-40).reverse().map((p:any)=>({
@@ -77,19 +87,19 @@ export async function getGameSummary(eventId:string):Promise<{plays:LivePlay[];l
     }));
     const leaders=(data.leaders||[]).flatMap((group:any)=>(group.leaders||[]).slice(0,3).map((l:any)=>({
       category:group.displayName||group.name||"Leader",name:l.athlete?.displayName||"",id:String(l.athlete?.id||""),
-      value:l.displayValue||l.value||"",team:l.team?.abbreviation||""
+      value:l.displayValue||l.value||"",team:appAbbr(l.team?.abbreviation||"")
     })));
     const injuries:InjuryRow[]=(data.injuries||[]).flatMap((team:any)=>(team.injuries||[]).map((i:any)=>({
       playerId:String(i.athlete?.id||""),name:i.athlete?.displayName||"",position:i.athlete?.position?.abbreviation||"",
-      status:i.status||i.type?.description||"",detail:i.details?.detail||i.details?.type||"",team:team.team?.abbreviation||team.displayName||""
+      status:i.status||i.type?.description||"",detail:i.details?.detail||i.details?.type||"",team:appAbbr(team.team?.abbreviation||team.displayName||"")
     })));
     return {plays,leaders,injuries,ok:true};
-  }catch{return {plays:[],leaders:[],injuries:[],ok:false}}
+  }catch(error){feedFailure("summary",error);return {plays:[],leaders:[],injuries:[],ok:false}}
 }
 
 export async function getTeamRoster(abbr:string):Promise<{players:RosterPlayer[];ok:boolean}>{
   try{
-    const res=await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/${abbr.toLowerCase()}/roster`,{next:{revalidate:1800}});
+    const res=await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/${encodeURIComponent(providerAbbr(abbr).toLowerCase())}/roster`,{signal:AbortSignal.timeout(FEED_TIMEOUT_MS),next:{revalidate:1800}});
     if(!res.ok) throw new Error("roster "+res.status);
     const data:any=await res.json();
     const groups=data.athletes||[];
@@ -99,12 +109,12 @@ export async function getTeamRoster(abbr:string):Promise<{players:RosterPlayer[]
       status:a.status?.name||a.status?.type||"Active",headshot:a.headshot?.href||""
     })));
     return {players,ok:players.length>0};
-  }catch{return {players:[],ok:false}}
+  }catch(error){feedFailure("roster",error);return {players:[],ok:false}}
 }
 
 export async function getPlayerProfile(id:string):Promise<{player:PlayerProfile|null;ok:boolean}>{
   try{
-    const res=await fetch(`https://site.web.api.espn.com/apis/common/v3/sports/football/nfl/athletes/${encodeURIComponent(id)}`,{next:{revalidate:3600}});
+    const res=await fetch(`https://site.web.api.espn.com/apis/common/v3/sports/football/nfl/athletes/${encodeURIComponent(id)}`,{signal:AbortSignal.timeout(FEED_TIMEOUT_MS),next:{revalidate:3600}});
     if(!res.ok) throw new Error("athlete "+res.status);
     const d:any=await res.json();const a=d.athlete||d;
     const player:PlayerProfile={id:String(a.id||id),name:a.fullName||a.displayName||"NFL Player",displayName:a.displayName||a.fullName||"NFL Player",
@@ -112,20 +122,30 @@ export async function getPlayerProfile(id:string):Promise<{player:PlayerProfile|
       height:a.displayHeight||"",weight:a.displayWeight||"",age:String(a.age||""),experience:a.experience?.displayValue||"",
       college:a.college?.name||"",headshot:a.headshot?.href||"",status:a.status?.name||a.status?.type||""};
     return {player,ok:true};
-  }catch{return {player:null,ok:false}}
+  }catch(error){feedFailure("athlete",error);return {player:null,ok:false}}
 }
 
-export async function getLeagueLeaders():Promise<{groups:{name:string;leaders:{id:string;name:string;team:string;value:string}[]}[];ok:boolean}>{
-  try{
-    const res=await fetch("https://site.api.espn.com/apis/site/v3/sports/football/nfl/leaders",{next:{revalidate:900}});
-    if(!res.ok) throw new Error("leaders "+res.status);
-    const d:any=await res.json();
-    const groups=(d.leaders||d.categories||[]).slice(0,8).map((g:any)=>({
-      name:g.displayName||g.name||"Leader",
-      leaders:(g.leaders||[]).slice(0,5).map((l:any)=>({id:String(l.athlete?.id||""),name:l.athlete?.displayName||"",team:l.team?.abbreviation||"",value:String(l.displayValue||l.value||"")}))
-    })).filter((g:any)=>g.leaders.length);
-    return {groups,ok:groups.length>0};
-  }catch{return {groups:[],ok:false}}
+type LeaderGroup={name:string;leaders:{id:string;name:string;team:string;value:string}[]};
+// Cache the small, transformed result rather than ESPN's multi-megabyte response.
+// Throw on failures so temporary outages do not replace a successful cache entry.
+const getCachedLeagueLeaders=unstable_cache(async():Promise<LeaderGroup[]>=>{
+  const res=await fetch("https://site.api.espn.com/apis/site/v3/sports/football/nfl/leaders",{
+    cache:"no-store",signal:AbortSignal.timeout(FEED_TIMEOUT_MS)
+  });
+  if(!res.ok) throw new Error("leaders "+res.status);
+  const d:any=await res.json();
+  const categories=Array.isArray(d.leaders)?d.leaders:(d.leaders?.categories||d.categories||[]);
+  const groups=categories.slice(0,8).map((g:any)=>({
+    name:g.displayName||g.name||"Leader",
+    leaders:(g.leaders||[]).slice(0,5).map((l:any)=>({id:String(l.athlete?.id||""),name:l.athlete?.displayName||"",team:appAbbr(l.team?.abbreviation||l.athlete?.team?.abbreviation||""),value:String(l.displayValue??l.value??"")}))
+  })).filter((g:any)=>g.leaders.length);
+  if(!groups.length) throw new Error("Empty league leaders response");
+  return groups;
+},["fourthdown-league-leaders-normalized-v15"],{revalidate:900});
+
+export async function getLeagueLeaders():Promise<{groups:LeaderGroup[];ok:boolean}>{
+  try{return {groups:await getCachedLeagueLeaders(),ok:true}}
+  catch(error){feedFailure("leaders",error);return {groups:[],ok:false}}
 }
 
 export async function getLeagueInjuryWatch():Promise<{rows:InjuryRow[];ok:boolean}>{
@@ -139,5 +159,5 @@ export async function getLeagueInjuryWatch():Promise<{rows:InjuryRow[];ok:boolea
       if(key&&!map.has(key)) map.set(key,i);
     }
     return {rows:Array.from(map.values()).slice(0,60),ok:map.size>0};
-  }catch{return {rows:[],ok:false}}
+  }catch(error){feedFailure("injuries",error);return {rows:[],ok:false}}
 }

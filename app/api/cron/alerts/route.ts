@@ -6,19 +6,19 @@ const CRON_SECRET=process.env.CRON_SECRET!;
 const RESEND_KEY=process.env.RESEND_API_KEY!;
 
 async function rpc(name:string,body:any){
- const r=await fetch(SB_URL+"/rest/v1/rpc/"+name,{method:"POST",headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify(body)});
+ const r=await fetch(SB_URL+"/rest/v1/rpc/"+name,{method:"POST",signal:AbortSignal.timeout(8000),headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify(body)});
  if(!r.ok)throw new Error("Supabase RPC "+r.status+": "+await r.text());
  const t=await r.text();return t?JSON.parse(t):null;
 }
 async function sendEmail(to:string,subject:string,html:string){
  const recipient=process.env.RESEND_TEST_RECIPIENT||to;
  const from=process.env.RESEND_FROM_EMAIL||"FourthDown <onboarding@resend.dev>";
- const r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:"Bearer "+RESEND_KEY,"Content-Type":"application/json"},body:JSON.stringify({from,to:[recipient],subject,html})});
+ const r=await fetch("https://api.resend.com/emails",{method:"POST",signal:AbortSignal.timeout(8000),headers:{Authorization:"Bearer "+RESEND_KEY,"Content-Type":"application/json"},body:JSON.stringify({from,to:[recipient],subject,html})});
  const d=await r.json();if(!r.ok)throw new Error(d?.message||("Resend "+r.status));return d;
 }
 function esc(v:any){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]||c))}
 
-export async function GET(req:Request){
+async function dispatch(req:Request){
  if(!CRON_SECRET||req.headers.get("authorization")!=="Bearer "+CRON_SECRET)return new Response("Unauthorized",{status:401});
  if(!SB_URL||!SB_KEY||!RESEND_KEY)return Response.json({ok:false,error:"V15 environment incomplete"},{status:500});
 
@@ -31,7 +31,7 @@ export async function GET(req:Request){
    const out=await sendEmail(a.recipient,"FourthDown: "+a.title,html);
    await rpc("record_v14_email_delivery",{p_secret:CRON_SECRET,p_user_id:a.user_id,p_kind:a.kind,p_dedupe_key:a.dedupe_key,p_recipient:a.recipient,p_provider_id:out?.id||null});
    emailSent++;
-  }catch(e:any){emailFailed++;emailErrors.push(e?.message||"send failed")}
+  }catch(e:any){emailFailed++;emailErrors.push("Email delivery failed");console.warn(JSON.stringify({event:"cron_email_failure"}))}
  }
 
  const publicKey=process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -46,12 +46,12 @@ export async function GET(req:Request){
    try{
     await webpush.sendNotification(
       {endpoint:p.endpoint,keys:{p256dh:p.p256dh,auth:p.auth}},
-      JSON.stringify({title:p.title,body:p.body,href:p.href||"/notifications",tag:p.dedupe_key})
+      JSON.stringify({title:p.title,body:p.body,href:p.href||"/notifications",tag:p.dedupe_key}),{timeout:8000}
     );
     await rpc("record_v15_push_delivery",{p_secret:CRON_SECRET,p_user_id:p.user_id,p_notification_id:p.notification_id,p_dedupe_key:p.dedupe_key});
     pushSent++;
    }catch(e:any){
-    pushFailed++;pushErrors.push(e?.body||e?.message||"push failed");
+    pushFailed++;pushErrors.push("Push delivery failed");console.warn(JSON.stringify({event:"cron_push_failure",statusCode:e?.statusCode||null}));
     if(e?.statusCode===404||e?.statusCode===410){
       await rpc("delete_v15_push_subscription",{p_secret:CRON_SECRET,p_subscription_id:p.subscription_id});
     }
@@ -60,11 +60,18 @@ export async function GET(req:Request){
  }
 
  return Response.json({
-  ok:true,mode:"alerts",
+  ok:emailFailed===0&&pushFailed===0,mode:"alerts",
   email:{candidates:(emailRows||[]).length,sent:emailSent,failed:emailFailed},
   push:{candidates:pushCandidates,sent:pushSent,failed:pushFailed},
   testMode:Boolean(process.env.RESEND_TEST_RECIPIENT),
   errors:[...emailErrors,...pushErrors].slice(0,4),
   at:new Date().toISOString()
  });
+}
+export async function GET(req:Request){
+ try{return await dispatch(req)}
+ catch{
+  console.error(JSON.stringify({event:"cron_batch_failure",route:new URL(req.url).pathname}));
+  return Response.json({ok:false,error:"Alert service temporarily unavailable"},{status:503});
+ }
 }
