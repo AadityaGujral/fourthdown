@@ -1,15 +1,5 @@
-const SB_URL=process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SB_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
-const CRON_SECRET=process.env.CRON_SECRET!;
-const RESEND_KEY=process.env.RESEND_API_KEY!;
-async function rpc(name:string,body:any){const r=await fetch(SB_URL+"/rest/v1/rpc/"+name,{method:"POST",signal:AbortSignal.timeout(8000),headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error("Supabase RPC "+r.status+": "+await r.text());const t=await r.text();return t?JSON.parse(t):null}
-async function sendEmail(to:string,subject:string,html:string){const recipient=process.env.RESEND_TEST_RECIPIENT||to;const from=process.env.RESEND_FROM_EMAIL||"FourthDown <onboarding@resend.dev>";const r=await fetch("https://api.resend.com/emails",{method:"POST",signal:AbortSignal.timeout(8000),headers:{Authorization:"Bearer "+RESEND_KEY,"Content-Type":"application/json"},body:JSON.stringify({from,to:[recipient],subject,html})});const d=await r.json();if(!r.ok)throw new Error(d?.message||("Resend "+r.status));return d}
-function esc(v:any){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]||c))}
-async function dispatch(req:Request){if(!CRON_SECRET||req.headers.get("authorization")!=="Bearer "+CRON_SECRET)return new Response("Unauthorized",{status:401});if(!SB_URL||!SB_KEY||!RESEND_KEY)return Response.json({ok:false,error:"Email environment incomplete"},{status:503});const rows=await rpc("get_v14_weekly_digest_batch",{p_secret:CRON_SECRET});let sent=0,failed=0;for(const a of rows||[]){try{const html=`<div style="font-family:Arial;background:#0b0e13;color:#fff;padding:28px"><h1>FourthDown</h1><p style="color:#ef3340;font-weight:700">WEEKLY DIGEST</p><h2>Your personalized football week</h2><p style="white-space:pre-line">${esc(a.body)}</p><p style="color:#9aa3af">Independent football intelligence. Not affiliated with or endorsed by the NFL.</p></div>`;const out=await sendEmail(a.recipient,a.title,html);await rpc("record_v14_email_delivery",{p_secret:CRON_SECRET,p_user_id:a.user_id,p_kind:a.kind,p_dedupe_key:a.dedupe_key,p_recipient:a.recipient,p_provider_id:out?.id||null});sent++}catch{failed++;console.warn(JSON.stringify({event:"weekly_email_failure"}))}}return Response.json({ok:failed===0,mode:"weekly",candidates:(rows||[]).length,sent,failed,testMode:Boolean(process.env.RESEND_TEST_RECIPIENT),at:new Date().toISOString()})}
-export async function GET(req:Request){
- try{return await dispatch(req)}
- catch{
-  console.error(JSON.stringify({event:"cron_batch_failure",route:new URL(req.url).pathname}));
-  return Response.json({ok:false,error:"Alert service temporarily unavailable"},{status:503});
- }
-}
+import {runAlertJob} from "@/lib/alert-jobs";
+export const runtime="nodejs";
+export const maxDuration=120;
+export const dynamic="force-dynamic";
+export async function GET(request:Request){return runAlertJob(request,"weekly")}
