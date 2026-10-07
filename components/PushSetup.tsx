@@ -98,8 +98,8 @@ export default function PushSetup(){
   setStatus(d.sent>0?`${d.sent} test push accepted for delivery${d.failed?` · ${d.failed} failed`:""}`:"No active subscription accepted the test. Enable push again.");
  }
  if(loading)return <section className="panel"><p className="muted">Checking browser push…</p></section>;
- if(!supported)return <section className="panel"><span className="kicker">BROWSER PUSH · V15</span><h2>Not supported here</h2><p className="muted">Use a browser with Web Push support. On iPhone, add FourthDown to your Home Screen and open it there.</p></section>;
- return <section className="panel" aria-busy={busy}><span className="kicker">BROWSER PUSH · V15</span><h2>{enabled?"Push enabled":"Turn on push alerts"}</h2><p className="accountNote">Receive FourthDown alerts even when the site is not open. Browser permission is required.</p>
+ if(!supported)return <section className="panel"><span className="kicker">BROWSER PUSH</span><h2>Not supported here</h2><p className="muted">Use a browser with Web Push support. On iPhone, add FourthDown to your Home Screen and open it there.</p></section>;
+ return <section className="panel" aria-busy={busy}><span className="kicker">BROWSER PUSH</span><h2>{enabled?"Push enabled":"Turn on push alerts"}</h2><p className="accountNote">Receive FourthDown alerts even when the site is not open. Browser permission is required.</p>
  {!enabled?<button className="btn" disabled={busy} onClick={()=>void run(enable)}>ENABLE BROWSER PUSH</button>:<>
  <label className="toggleRow"><span>Favorite-team game push</span><input disabled={busy} type="checkbox" checked={game} onChange={e=>setGame(e.target.checked)}/></label>
  <label className="toggleRow"><span>Saved-player injury push</span><input disabled={busy} type="checkbox" checked={injury} onChange={e=>setInjury(e.target.checked)}/></label>
