@@ -28,3 +28,9 @@ Email remains in the existing test-recipient mode with the onboarding sender. Wi
 - Additive migrations applied successfully; security advisor reviewed as above.
 
 Deployment verification is recorded in the pull request and completion message. A manually authenticated production cron run could not be performed because Vercel does not return the sensitive CRON_SECRET value. The next scheduled run and actual iPhone receipt remain operational checks. At implementation time there were no registered push subscriptions, so device delivery cannot be claimed verified.
+
+## Production follow-up (2026-10-07)
+
+The scheduled alerts job completed at 13:02:42 UTC (09:02:42 EDT). Both upstream feeds reported available; the run was not degraded. It inserted zero notifications, queued zero deliveries, and reported zero failures or unsettled jobs. This verifies scheduled execution but not scheduled message delivery when an eligible event exists. The user separately confirmed a test push displayed on their Windows laptop on October 6 after enabling Windows notifications, and saved both game and injury push preferences. iPhone delivery remains unverified.
+
+Removed obsolete V14/V15 feature labels and updated the test notification wording. Email remains in test-recipient mode.

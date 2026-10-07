@@ -21,7 +21,7 @@ export async function POST(request:Request){
   let sent=0,failed=0;
   for(const item of query.data){
    try{
-    await webpush.sendNotification({endpoint:item.endpoint,keys:{p256dh:item.p256dh,auth:item.auth}},JSON.stringify({title:"FourthDown V15",body:"Browser push is working.",href:"/notifications",tag:"fourthdown-v15-test"}),{timeout:8000});
+    await webpush.sendNotification({endpoint:item.endpoint,keys:{p256dh:item.p256dh,auth:item.auth}},JSON.stringify({title:"FourthDown",body:"Your FourthDown test notification has arrived.",href:"/notifications",tag:"fourthdown-v15-test"}),{timeout:8000});
     sent++;
    }catch(error:any){
     failed++;
