@@ -12,7 +12,7 @@ export default function HomeSlideshow({children,games,stories,featuredId}:{child
  const [index,setIndex]=useState(0),[paused,setPaused]=useState(false),[hover,setHover]=useState(false),[reduced,setReduced]=useState(true),[hidden,setHidden]=useState(false);
  useEffect(()=>{const media=matchMedia('(prefers-reduced-motion: reduce)');const motion=()=>setReduced(media.matches);const visibility=()=>setHidden(document.hidden);motion();visibility();media.addEventListener('change',motion);document.addEventListener('visibilitychange',visibility);return()=>{media.removeEventListener('change',motion);document.removeEventListener('visibilitychange',visibility)}},[]);
  const count=slides.length,active=index%count,slide=slides[active];
- useEffect(()=>{if(paused||hover||reduced||hidden||count<2)return;const timer=setInterval(()=>setIndex(i=>(i+1)%count),7000);return()=>clearInterval(timer)},[paused,hover,reduced,hidden,count]);
+ useEffect(()=>{if(paused||hover||reduced||hidden||count<2)return;const timer=setInterval(()=>setIndex(i=>(i+1)%count),2000);return()=>clearInterval(timer)},[paused,hover,reduced,hidden,count]);
  const move=(i:number)=>{setPaused(true);setIndex((i+count)%count)};
  return <section className="hd-slideshow" aria-label="NFL games and news slideshow" aria-roledescription="carousel" onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} onFocusCapture={()=>setPaused(true)} onKeyDown={e=>{if(e.key==='ArrowRight'){e.preventDefault();move(active+1)}if(e.key==='ArrowLeft'){e.preventDefault();move(active-1)}}}>
  <div className="hd-slide-stage" aria-live={paused||reduced?'polite':'off'}>
