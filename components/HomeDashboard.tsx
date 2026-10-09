@@ -1,6 +1,7 @@
 'use client';
 import {useState} from 'react';
 import Link from 'next/link';
+import {teams} from '@/lib/teams';
 import type {StandingRow} from '@/lib/live-nfl';
 export function ClubLogo({abbr}:{abbr:string}) {
  const code=({ARZ:'ari',WAS:'wsh'} as Record<string,string>)[abbr]||abbr.toLowerCase();
@@ -9,7 +10,7 @@ export function ClubLogo({abbr}:{abbr:string}) {
 }
 export default function HomeDashboard({rows,groups}:{rows:StandingRow[];groups:{name:string;leaders:{id:string;name:string;team:string;value:string}[]}[]}) {
  const [conference,setConference]=useState('AFC'); const [category,setCategory]=useState(0);
- const sorted=[...rows].sort((a,b)=>(Number(b.pct)||0)-(Number(a.pct)||0)||Number(b.wins)-Number(a.wins));
+ const sorted=rows.map(r=>{const team=teams.find(t=>t.abbr===r.abbr);return {...r,conference:team?.division.slice(0,3)||r.conference,division:team?.division||r.division}}).sort((a,b)=>(Number(b.pct)||0)-(Number(a.pct)||0)||Number(b.wins)-Number(a.wins));
  const conferenceRows=sorted.filter(r=>r.conference.includes(conference));
  const division=conferenceRows.find(r=>/East/.test(r.division))?.division||conferenceRows[0]?.division;
  const divisionRows=conferenceRows.filter(r=>r.division===division);
